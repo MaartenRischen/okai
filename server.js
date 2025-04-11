@@ -1,5 +1,11 @@
 const express = require('express');
 const basicAuth = require('basic-auth');
+const bodyParser = require('body-parser');
+const path = require('path');
+const sequelize = require('./config/database');
+const Note = require('./models/Note');
+require('dotenv').config();
+
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -19,13 +25,73 @@ const auth = (req, res, next) => {
   next(); // Proceed if authentication is successful
 };
 
-// Apply the middleware to all routes
-app.use(auth);
+// Middleware
+app.use(auth); // Apply auth to all routes
+app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, 'public')));
+app.set('view engine', 'ejs');
 
-app.get('/', (req, res) => {
-  res.send('Hi from OkAi!');
+// Database initialization
+async function initDatabase() {
+  try {
+    await sequelize.authenticate();
+    console.log('Database connection established successfully.');
+    
+    // Sync models with database
+    await sequelize.sync({ alter: true });
+    console.log('Database models synchronized.');
+  } catch (error) {
+    console.error('Unable to connect to the database:', error);
+  }
+}
+
+// Routes
+// Home page
+app.get('/', async (req, res) => {
+  try {
+    const notes = await Note.findAll({
+      order: [['createdAt', 'DESC']]
+    });
+    res.render('index', { notes });
+  } catch (error) {
+    console.error('Error fetching notes:', error);
+    res.render('index', { notes: [] });
+  }
 });
 
-app.listen(port, () => {
+// API Routes
+// Get all notes
+app.get('/api/notes', async (req, res) => {
+  try {
+    const notes = await Note.findAll({
+      order: [['createdAt', 'DESC']]
+    });
+    res.json(notes);
+  } catch (error) {
+    console.error('Error fetching notes:', error);
+    res.status(500).json({ error: 'Failed to fetch notes' });
+  }
+});
+
+// Create a new note
+app.post('/api/notes', async (req, res) => {
+  try {
+    const { content } = req.body;
+    
+    if (!content) {
+      return res.status(400).json({ error: 'Content is required' });
+    }
+    
+    const note = await Note.create({ content });
+    res.status(201).json(note);
+  } catch (error) {
+    console.error('Error creating note:', error);
+    res.status(500).json({ error: 'Failed to create note' });
+  }
+});
+
+// Start server
+app.listen(port, async () => {
   console.log(`OkAi app listening on port ${port}`);
+  await initDatabase();
 }); 
