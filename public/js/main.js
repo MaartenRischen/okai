@@ -71,4 +71,50 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Error fetching notes:', error);
     }
   }
+
+  // ChatGPT Import Form Handler
+  const chatgptImportForm = document.getElementById('chatgpt-import-form');
+  const importStatusDiv = document.getElementById('import-status');
+
+  if (chatgptImportForm) {
+    chatgptImportForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      importStatusDiv.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div> Importing...';
+      
+      const fileInput = document.getElementById('chatgptFile');
+      if (!fileInput.files || fileInput.files.length === 0) {
+        importStatusDiv.textContent = 'Please select a file.';
+        return;
+      }
+      
+      const formData = new FormData();
+      formData.append('chatgptFile', fileInput.files[0]);
+      
+      try {
+        const response = await fetch('/api/import/chatgpt', {
+          method: 'POST',
+          // No Content-Type header needed; browser sets it for FormData
+          body: formData,
+        });
+        
+        const result = await response.json();
+
+        if (response.ok) {
+          let statusMessage = `<div class="alert alert-success">${result.message}</div>`;
+          if (result.errors && result.errors.length > 0) {
+            statusMessage += `<div class="alert alert-warning mt-2">Errors during import:<br>${result.errors.join('<br>')}</div>`;
+          }
+           importStatusDiv.innerHTML = statusMessage;
+        } else {
+           importStatusDiv.innerHTML = `<div class="alert alert-danger">Error: ${result.message || response.statusText}</div>`;
+        }
+      } catch (error) {
+        console.error('Error importing ChatGPT data:', error);
+         importStatusDiv.innerHTML = `<div class="alert alert-danger">Client-side error during import: ${error.message}</div>`;
+      }
+    });
+  }
+  
+  // Initial fetch of notes when page loads
+  fetchNotes();
 }); 

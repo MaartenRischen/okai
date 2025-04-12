@@ -4,6 +4,8 @@ const bodyParser = require('body-parser');
 const path = require('path');
 const sequelize = require('./config/database');
 const Note = require('./models/Note');
+const ChatHistory = require('./models/ChatHistory');
+const importRoutes = require('./routes/importRoutes');
 require('dotenv').config();
 
 const app = express();
@@ -60,6 +62,8 @@ app.get('/', async (req, res) => {
 });
 
 // API Routes
+app.use('/api/import', importRoutes);
+
 // Get all notes
 app.get('/api/notes', async (req, res) => {
   try {

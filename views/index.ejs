@@ -21,7 +21,7 @@
             <h2 class="h5 mb-0">What's on your mind?</h2>
           </div>
           <div class="card-body">
-            <form id="note-form" action="/api/notes" method="POST">
+            <form id="note-form">
               <div class="mb-3">
                 <textarea class="form-control" id="note-content" name="content" rows="4" placeholder="Type anything - ideas, tasks, thoughts..." required autofocus></textarea>
               </div>
@@ -29,6 +29,33 @@
             </form>
           </div>
         </div>
+
+        <!-- Import Section -->
+        <div class="card mb-4">
+          <div class="card-header">
+            <h2 class="h5 mb-0">Import Chat History</h2>
+          </div>
+          <div class="card-body">
+            <form id="chatgpt-import-form">
+              <div class="mb-3">
+                <label for="chatgptFile" class="form-label">ChatGPT Export (conversations.json or zip)</label>
+                <input class="form-control" type="file" id="chatgptFile" name="chatgptFile" accept=".json, .zip" required>
+              </div>
+              <button type="submit" class="btn btn-secondary">Import ChatGPT</button>
+            </form>
+            <!-- Placeholder for Gemini Import Form -->
+            <form id="gemini-import-form" class="mt-3">
+              <div class="mb-3">
+                <label for="geminiFile" class="form-label">Gemini Export (Not yet implemented)</label>
+                <input class="form-control" type="file" id="geminiFile" name="geminiFile" disabled>
+              </div>
+              <button type="submit" class="btn btn-secondary" disabled>Import Gemini</button>
+            </form>
+            <div id="import-status" class="mt-3"></div>
+          </div>
+        </div>
+        <!-- End Import Section -->
+
       </div>
 
       <div class="col-md-6">
