@@ -94,6 +94,21 @@ app.post('/api/notes', async (req, res) => {
   }
 });
 
+// Get recent ChatGPT messages
+app.get('/api/chathistory', async (req, res) => {
+  try {
+    const messages = await ChatHistory.findAll({
+      where: { platform: 'chatgpt' },
+      order: [['timestamp', 'DESC']],
+      limit: 20
+    });
+    res.json(messages);
+  } catch (error) {
+    console.error('Error fetching chat history:', error);
+    res.status(500).json({ error: 'Failed to fetch chat history' });
+  }
+});
+
 // Start server
 app.listen(port, async () => {
   console.log(`OkAi app listening on port ${port}`);

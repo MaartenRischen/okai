@@ -105,6 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
             statusMessage += `<div class="alert alert-warning mt-2">Errors during import:<br>${result.errors.join('<br>')}</div>`;
           }
            importStatusDiv.innerHTML = statusMessage;
+           fetchChatHistory(); // Refresh chat history after import
         } else {
            importStatusDiv.innerHTML = `<div class="alert alert-danger">Error: ${result.message || response.statusText}</div>`;
         }
@@ -115,6 +116,35 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
+  // Function to fetch and display recent ChatGPT messages
+  async function fetchChatHistory() {
+    const container = document.getElementById('chathistory-container');
+    if (!container) return;
+    container.innerHTML = '<div class="text-muted">Loading chat history...</div>';
+    try {
+      const response = await fetch('/api/chathistory');
+      if (!response.ok) throw new Error('Failed to fetch chat history');
+      const messages = await response.json();
+      if (!messages.length) {
+        container.innerHTML = '<div class="text-muted">No ChatGPT messages imported yet.</div>';
+        return;
+      }
+      const html = messages.map(msg => `
+        <div class="mb-3 p-2 border rounded bg-light">
+          <div><strong>${msg.role}</strong> <span class="text-muted small">[${msg.conversationId}]</span></div>
+          <div class="mb-1">${msg.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+          <div class="text-muted small">${msg.timestamp ? new Date(msg.timestamp).toLocaleString() : 'No timestamp'}</div>
+        </div>
+      `).join('');
+      container.innerHTML = html;
+    } catch (error) {
+      container.innerHTML = `<div class="text-danger">Error loading chat history: ${error.message}</div>`;
+    }
+  }
+
+  // Fetch chat history on page load
+  fetchChatHistory();
+
   // Initial fetch of notes when page loads
   fetchNotes();
 }); 
