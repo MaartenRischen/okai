@@ -75,18 +75,19 @@ router.post('/chatgpt', upload.single('chatgptFile'), multerErrorHandler, async 
       // Iterate through message nodes
       for (const nodeId in conversation.mapping) {
         const node = conversation.mapping[nodeId];
-        if (!node.message || !node.message.author || !node.message.create_time) {
+        if (!node.message || !node.message.author) {
+          console.log(`Skipping node ${nodeId} in conversation ${conversationId}: missing message or author.`);
           continue; // Skip nodes without essential message data
         }
 
         const messageId = node.id;
         const role = node.message.author.role;
         const content = getMessageContent(node.message);
-        const timestamp = new Date(node.message.create_time * 1000); // Convert Unix timestamp
+        // If create_time is missing, set timestamp to null
+        const timestamp = node.message.create_time ? new Date(node.message.create_time * 1000) : null;
 
         if (!content) {
-          // Optionally log skipped messages with no content
-          // console.log(`Skipping message ${messageId} in conversation ${conversationId} due to missing content.`);
+          console.log(`Skipping message ${messageId} in conversation ${conversationId} due to missing content.`);
           continue;
         }
 
