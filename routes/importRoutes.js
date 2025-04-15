@@ -8,7 +8,21 @@ const ChatHistory = require('../models/ChatHistory');
 const router = express.Router();
 
 // Configure Multer for file uploads (store in memory)
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit
+});
+
+// Multer error handler middleware
+function multerErrorHandler(err, req, res, next) {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ message: 'File too large. Maximum allowed size is 100MB.' });
+    }
+    return res.status(400).json({ message: 'File upload error: ' + err.message });
+  }
+  next(err);
+}
 
 // Helper function to safely extract message content
 const getMessageContent = (message) => {
@@ -21,7 +35,7 @@ const getMessageContent = (message) => {
 };
 
 // POST route for ChatGPT import
-router.post('/chatgpt', upload.single('chatgptFile'), async (req, res) => {
+router.post('/chatgpt', upload.single('chatgptFile'), multerErrorHandler, async (req, res) => {
   if (!req.file) {
     return res.status(400).send('No file uploaded.');
   }
