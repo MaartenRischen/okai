@@ -64,6 +64,9 @@ router.post('/chatgpt', upload.single('chatgptFile'), multerErrorHandler, async 
       return res.status(400).send('Invalid JSON format. Expected an array of conversations.');
     }
 
+    let totalNodes = 0;
+    let skippedNoMessageOrAuthor = 0;
+    let skippedNoContent = 0;
     let importedCount = 0;
     const importErrors = [];
 
@@ -74,20 +77,25 @@ router.post('/chatgpt', upload.single('chatgptFile'), multerErrorHandler, async 
 
       // Iterate through message nodes
       for (const nodeId in conversation.mapping) {
+        totalNodes++;
         const node = conversation.mapping[nodeId];
         if (!node.message || !node.message.author) {
-          console.log(`Skipping node ${nodeId} in conversation ${conversationId}: missing message or author.`);
+          console.log(`[SKIP] Node ${nodeId} in conversation ${conversationId}: missing message or author.`);
+          skippedNoMessageOrAuthor++;
           continue; // Skip nodes without essential message data
         }
 
         const messageId = node.id;
         const role = node.message.author.role;
         const content = getMessageContent(node.message);
-        // If create_time is missing, set timestamp to null
         const timestamp = node.message.create_time ? new Date(node.message.create_time * 1000) : null;
 
-        if (!content) {
-          console.log(`Skipping message ${messageId} in conversation ${conversationId} due to missing content.`);
+        // Log the message details
+        console.log(`[NODE] messageId: ${messageId}, role: ${role}, timestamp: ${timestamp}, content: ${content && content.slice(0, 100)}`);
+
+        if (!content || !content.trim()) {
+          console.log(`[SKIP] Message ${messageId} in conversation ${conversationId} due to missing or empty content.`);
+          skippedNoContent++;
           continue;
         }
 
@@ -106,13 +114,21 @@ router.post('/chatgpt', upload.single('chatgptFile'), multerErrorHandler, async 
 
           if (created) {
             importedCount++;
+            console.log(`[IMPORTED] Message ${messageId} imported.`);
+          } else {
+            console.log(`[DUPLICATE] Message ${messageId} already exists in DB.`);
           }
         } catch (error) {
-          console.error(`Error importing message ${messageId}:`, error);
+          console.error(`[ERROR] Importing message ${messageId}:`, error);
           importErrors.push(`Message ${messageId}: ${error.message}`);
         }
       }
     }
+
+    console.log(`[SUMMARY] Total nodes processed: ${totalNodes}`);
+    console.log(`[SUMMARY] Skipped (no message/author): ${skippedNoMessageOrAuthor}`);
+    console.log(`[SUMMARY] Skipped (no content): ${skippedNoContent}`);
+    console.log(`[SUMMARY] Imported: ${importedCount}`);
 
     res.status(200).json({
         message: `Import completed. Imported ${importedCount} new messages.`,
