@@ -147,4 +147,81 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initial fetch of notes when page loads
   fetchNotes();
+
+  // --- ChatGPT Conversations List and Full History ---
+  const conversationList = document.getElementById('conversation-list');
+  const fullChatCard = document.getElementById('full-chathistory-card');
+  const fullChatContainer = document.getElementById('full-chathistory-container');
+  const fullChatTitle = document.getElementById('full-chathistory-title');
+  const closeChatBtn = document.getElementById('close-chathistory');
+
+  async function fetchConversations() {
+    if (!conversationList) return;
+    conversationList.innerHTML = '<div class="text-muted">Loading conversations...</div>';
+    try {
+      const response = await fetch('/api/chathistory/conversations');
+      if (!response.ok) throw new Error('Failed to fetch conversations');
+      const conversations = await response.json();
+      if (!conversations.length) {
+        conversationList.innerHTML = '<div class="text-muted">No conversations found.</div>';
+        return;
+      }
+      const html = conversations.map(conv => `
+        <div class="mb-2">
+          <a href="#" class="conversation-link" data-convid="${conv.conversationId}">
+            <strong>${conv.title.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</strong>
+            <span class="text-muted small">[${conv.conversationId.slice(0, 8)}...]</span>
+            <span class="text-muted small">${conv.lastMessage ? new Date(conv.lastMessage).toLocaleString() : ''}</span>
+          </a>
+        </div>
+      `).join('');
+      conversationList.innerHTML = html;
+      // Add click handlers
+      document.querySelectorAll('.conversation-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          const convid = link.getAttribute('data-convid');
+          showFullConversation(convid, link.textContent.trim());
+        });
+      });
+    } catch (error) {
+      conversationList.innerHTML = `<div class="text-danger">Error loading conversations: ${error.message}</div>`;
+    }
+  }
+
+  async function showFullConversation(conversationId, title) {
+    if (!fullChatCard || !fullChatContainer || !fullChatTitle) return;
+    fullChatCard.style.display = '';
+    fullChatTitle.textContent = title || 'Conversation';
+    fullChatContainer.innerHTML = '<div class="text-muted">Loading conversation...</div>';
+    try {
+      const response = await fetch(`/api/chathistory/${conversationId}`);
+      if (!response.ok) throw new Error('Failed to fetch conversation history');
+      const messages = await response.json();
+      if (!messages.length) {
+        fullChatContainer.innerHTML = '<div class="text-muted">No messages in this conversation.</div>';
+        return;
+      }
+      const html = messages.map(msg => `
+        <div class="mb-3 p-2 border rounded ${msg.role === 'user' ? 'bg-white' : 'bg-light'}">
+          <div><strong>${msg.role}</strong> <span class="text-muted small">${msg.timestamp ? new Date(msg.timestamp).toLocaleString() : 'No timestamp'}</span></div>
+          <div class="mb-1">${msg.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+        </div>
+      `).join('');
+      fullChatContainer.innerHTML = html;
+    } catch (error) {
+      fullChatContainer.innerHTML = `<div class="text-danger">Error loading conversation: ${error.message}</div>`;
+    }
+  }
+
+  if (closeChatBtn && fullChatCard) {
+    closeChatBtn.addEventListener('click', () => {
+      fullChatCard.style.display = 'none';
+      fullChatContainer.innerHTML = '<div class="text-muted">Select a conversation to view its full history.</div>';
+    });
+  }
+
+  // On page load, fetch conversations and hide full chat card
+  if (fullChatCard) fullChatCard.style.display = 'none';
+  fetchConversations();
 }); 

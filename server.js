@@ -109,6 +109,54 @@ app.get('/api/chathistory', async (req, res) => {
   }
 });
 
+// Get all unique ChatGPT conversations (id and title)
+app.get('/api/chathistory/conversations', async (req, res) => {
+  try {
+    // Find all unique conversationIds and their most recent message timestamp
+    const conversations = await ChatHistory.findAll({
+      where: { platform: 'chatgpt' },
+      attributes: [
+        'conversationId',
+        [sequelize.fn('MAX', sequelize.col('timestamp')), 'lastMessage'],
+      ],
+      group: ['conversationId'],
+      order: [[sequelize.fn('MAX', sequelize.col('timestamp')), 'DESC']],
+      raw: true
+    });
+    // Try to get a title for each conversation (from the first message with non-empty content)
+    const withTitles = await Promise.all(conversations.map(async (conv) => {
+      const firstMsg = await ChatHistory.findOne({
+        where: { conversationId: conv.conversationId, platform: 'chatgpt' },
+        order: [['timestamp', 'ASC']],
+      });
+      return {
+        conversationId: conv.conversationId,
+        title: firstMsg && firstMsg.content ? firstMsg.content.slice(0, 60) : '(No title)',
+        lastMessage: conv.lastMessage
+      };
+    }));
+    res.json(withTitles);
+  } catch (error) {
+    console.error('Error fetching conversations:', error);
+    res.status(500).json({ error: 'Failed to fetch conversations' });
+  }
+});
+
+// Get all messages for a conversation
+app.get('/api/chathistory/:conversationId', async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const messages = await ChatHistory.findAll({
+      where: { platform: 'chatgpt', conversationId },
+      order: [['timestamp', 'ASC']],
+    });
+    res.json(messages);
+  } catch (error) {
+    console.error('Error fetching conversation history:', error);
+    res.status(500).json({ error: 'Failed to fetch conversation history' });
+  }
+});
+
 // Start server
 app.listen(port, async () => {
   console.log(`OkAi app listening on port ${port}`);

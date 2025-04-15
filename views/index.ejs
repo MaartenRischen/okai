@@ -56,16 +56,28 @@
         </div>
         <!-- End Import Section -->
 
-        <!-- ChatGPT History Section -->
+        <!-- ChatGPT Conversations List Section -->
         <div class="card mb-4">
           <div class="card-header">
-            <h2 class="h5 mb-0">Recent ChatGPT Messages</h2>
+            <h2 class="h5 mb-0">All ChatGPT Conversations</h2>
           </div>
-          <div class="card-body" id="chathistory-container">
-            <div class="text-muted">Loading chat history...</div>
+          <div class="card-body" id="conversation-list">
+            <div class="text-muted">Loading conversations...</div>
           </div>
         </div>
-        <!-- End ChatGPT History Section -->
+        <!-- End ChatGPT Conversations List Section -->
+
+        <!-- Full ChatGPT Conversation Section -->
+        <div class="card mb-4" id="full-chathistory-card" style="display:none;">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="h5 mb-0" id="full-chathistory-title">Conversation</h2>
+            <button class="btn btn-sm btn-outline-secondary" id="close-chathistory">Close</button>
+          </div>
+          <div class="card-body" id="full-chathistory-container">
+            <div class="text-muted">Select a conversation to view its full history.</div>
+          </div>
+        </div>
+        <!-- End Full ChatGPT Conversation Section -->
 
       </div>
 
