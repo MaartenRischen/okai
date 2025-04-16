@@ -155,18 +155,66 @@ document.addEventListener('DOMContentLoaded', () => {
   const fullChatTitle = document.getElementById('full-chathistory-title');
   const closeChatBtn = document.getElementById('close-chathistory');
 
-  async function fetchConversations() {
-    if (!conversationList) return;
-    conversationList.innerHTML = '<div class="text-muted">Loading conversations...</div>';
-    try {
-      const response = await fetch('/api/chathistory/conversations');
-      if (!response.ok) throw new Error('Failed to fetch conversations');
-      const conversations = await response.json();
-      if (!conversations.length) {
-        conversationList.innerHTML = '<div class="text-muted">No conversations found.</div>';
+  // --- Sidebar, Grouping, and Chat View Logic ---
+  const folderList = document.getElementById('folder-list');
+  const groupedConversationList = document.getElementById('grouped-conversation-list');
+  let allConversations = [];
+  let currentFolder = 'all';
+
+  function getFolderName(folder) {
+    return folder || 'Unfiled';
+  }
+
+  function groupByDate(conversations) {
+    const now = new Date();
+    const groups = { 'Previous 7 Days': [], 'Previous 30 Days': [], 'Older': [] };
+    conversations.forEach(conv => {
+      const last = conv.lastMessage ? new Date(conv.lastMessage) : null;
+      if (!last) {
+        groups['Older'].push(conv);
         return;
       }
-      const html = conversations.map(conv => `
+      const diffDays = (now - last) / (1000 * 60 * 60 * 24);
+      if (diffDays <= 7) {
+        groups['Previous 7 Days'].push(conv);
+      } else if (diffDays <= 30) {
+        groups['Previous 30 Days'].push(conv);
+      } else {
+        groups['Older'].push(conv);
+      }
+    });
+    return groups;
+  }
+
+  function renderSidebar(conversations) {
+    if (!folderList) return;
+    // Get unique folders
+    const folders = Array.from(new Set(conversations.map(c => getFolderName(c.folder))));
+    folderList.innerHTML = '<li class="nav-item"><a class="nav-link' + (currentFolder === 'all' ? ' active' : '') + '" href="#" data-folder="all">All Conversations</a></li>' +
+      folders.map(folder => `<li class="nav-item"><a class="nav-link${currentFolder === folder ? ' active' : ''}" href="#" data-folder="${folder}">${folder}</a></li>`).join('');
+    // Add click handlers
+    folderList.querySelectorAll('.nav-link').forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        currentFolder = link.getAttribute('data-folder');
+        renderSidebar(conversations);
+        renderGroupedConversations();
+      });
+    });
+  }
+
+  function renderGroupedConversations() {
+    if (!groupedConversationList) return;
+    let filtered = allConversations;
+    if (currentFolder !== 'all') {
+      filtered = filtered.filter(c => getFolderName(c.folder) === currentFolder);
+    }
+    const groups = groupByDate(filtered);
+    let html = '';
+    Object.entries(groups).forEach(([group, convs]) => {
+      if (!convs.length) return;
+      html += `<h6 class="mt-4 mb-2">${group}</h6>`;
+      html += convs.map(conv => `
         <div class="mb-2">
           <a href="#" class="conversation-link" data-convid="${conv.conversationId}">
             <strong>${conv.title.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</strong>
@@ -175,20 +223,31 @@ document.addEventListener('DOMContentLoaded', () => {
           </a>
         </div>
       `).join('');
-      conversationList.innerHTML = html;
-      // Add click handlers
-      document.querySelectorAll('.conversation-link').forEach(link => {
-        link.addEventListener('click', (e) => {
-          e.preventDefault();
-          const convid = link.getAttribute('data-convid');
-          showFullConversation(convid, link.textContent.trim());
-        });
+    });
+    groupedConversationList.innerHTML = html || '<div class="text-muted">No conversations found.</div>';
+    // Add click handlers
+    groupedConversationList.querySelectorAll('.conversation-link').forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const convid = link.getAttribute('data-convid');
+        showFullConversation(convid, link.textContent.trim());
       });
+    });
+  }
+
+  async function fetchAndRenderConversations() {
+    try {
+      const response = await fetch('/api/chathistory/conversations');
+      if (!response.ok) throw new Error('Failed to fetch conversations');
+      allConversations = await response.json();
+      renderSidebar(allConversations);
+      renderGroupedConversations();
     } catch (error) {
-      conversationList.innerHTML = `<div class="text-danger">Error loading conversations: ${error.message}</div>`;
+      groupedConversationList.innerHTML = `<div class="text-danger">Error loading conversations: ${error.message}</div>`;
     }
   }
 
+  // Improved chat view with bubbles, avatars, alignment
   async function showFullConversation(conversationId, title) {
     if (!fullChatCard || !fullChatContainer || !fullChatTitle) return;
     fullChatCard.style.display = '';
@@ -203,12 +262,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       const html = messages.map(msg => `
-        <div class="mb-3 p-2 border rounded ${msg.role === 'user' ? 'bg-white' : 'bg-light'}">
-          <div><strong>${msg.role}</strong> <span class="text-muted small">${msg.timestamp ? new Date(msg.timestamp).toLocaleString() : 'No timestamp'}</span></div>
-          <div class="mb-1">${msg.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+        <div class="d-flex mb-3 ${msg.role === 'user' ? 'justify-content-end' : 'justify-content-start'}">
+          ${msg.role === 'assistant' ? '<div class="me-2"><span class="avatar bg-primary text-white rounded-circle p-2">A</span></div>' : ''}
+          <div class="chat-bubble ${msg.role === 'user' ? 'user-bubble bg-info text-white' : 'assistant-bubble bg-light border'}">
+            <div class="mb-1">${msg.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+            <div class="text-muted small text-end">${msg.timestamp ? new Date(msg.timestamp).toLocaleString() : 'No timestamp'}</div>
+          </div>
+          ${msg.role === 'user' ? '<div class="ms-2"><span class="avatar bg-secondary text-white rounded-circle p-2">U</span></div>' : ''}
         </div>
       `).join('');
-      fullChatContainer.innerHTML = html;
+      fullChatContainer.innerHTML = `<div class="p-3">${html}</div>`;
+      fullChatContainer.scrollTop = fullChatContainer.scrollHeight;
     } catch (error) {
       fullChatContainer.innerHTML = `<div class="text-danger">Error loading conversation: ${error.message}</div>`;
     }
@@ -223,5 +287,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // On page load, fetch conversations and hide full chat card
   if (fullChatCard) fullChatCard.style.display = 'none';
-  fetchConversations();
+  fetchAndRenderConversations();
 }); 
