@@ -73,7 +73,22 @@ router.post('/chatgpt', upload.single('chatgptFile'), multerErrorHandler, async 
     // Process each conversation
     for (const conversation of conversationsData) {
       const conversationId = conversation.id;
+      const conversationTitle = conversation.title || null;
       if (!conversation.mapping) continue;
+
+      // Find the first user message content as fallback title
+      let fallbackTitle = null;
+      for (const nodeId in conversation.mapping) {
+        const node = conversation.mapping[nodeId];
+        if (node.message && node.message.author && node.message.author.role === 'user') {
+          const content = getMessageContent(node.message);
+          if (content && content.trim()) {
+            fallbackTitle = content.slice(0, 60);
+            break;
+          }
+        }
+      }
+      const finalTitle = conversationTitle || fallbackTitle || '(No title)';
 
       // Iterate through message nodes
       for (const nodeId in conversation.mapping) {
@@ -106,6 +121,8 @@ router.post('/chatgpt', upload.single('chatgptFile'), multerErrorHandler, async 
             defaults: {
               platform: 'chatgpt',
               conversationId: conversationId,
+              title: finalTitle,
+              folder: null,
               role: role,
               content: content,
               timestamp: timestamp,

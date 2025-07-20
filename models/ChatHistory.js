@@ -15,6 +15,14 @@ const ChatHistory = sequelize.define('ChatHistory', {
     type: DataTypes.STRING,
     allowNull: false,
   },
+  title: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  folder: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
   messageId: {
     type: DataTypes.STRING,
     allowNull: false,

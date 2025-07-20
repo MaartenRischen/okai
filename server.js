@@ -109,7 +109,7 @@ app.get('/api/chathistory', async (req, res) => {
   }
 });
 
-// Get all unique ChatGPT conversations (id and title)
+// Get all unique ChatGPT conversations (id, title, folder)
 app.get('/api/chathistory/conversations', async (req, res) => {
   try {
     // Find all unique conversationIds and their most recent message timestamp
@@ -117,25 +117,15 @@ app.get('/api/chathistory/conversations', async (req, res) => {
       where: { platform: 'chatgpt' },
       attributes: [
         'conversationId',
+        'title',
+        'folder',
         [sequelize.fn('MAX', sequelize.col('timestamp')), 'lastMessage'],
       ],
-      group: ['conversationId'],
-      order: [[sequelize.fn('MAX', sequelize.col('timestamp')), 'DESC']],
+      group: ['conversationId', 'title', 'folder'],
+      order: [['folder', 'ASC'], [sequelize.fn('MAX', sequelize.col('timestamp')), 'DESC']],
       raw: true
     });
-    // Try to get a title for each conversation (from the first message with non-empty content)
-    const withTitles = await Promise.all(conversations.map(async (conv) => {
-      const firstMsg = await ChatHistory.findOne({
-        where: { conversationId: conv.conversationId, platform: 'chatgpt' },
-        order: [['timestamp', 'ASC']],
-      });
-      return {
-        conversationId: conv.conversationId,
-        title: firstMsg && firstMsg.content ? firstMsg.content.slice(0, 60) : '(No title)',
-        lastMessage: conv.lastMessage
-      };
-    }));
-    res.json(withTitles);
+    res.json(conversations);
   } catch (error) {
     console.error('Error fetching conversations:', error);
     res.status(500).json({ error: 'Failed to fetch conversations' });

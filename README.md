@@ -1,5 +1,9 @@
 # OkAi Application
 
+> **🚧 UNDER CONSTRUCTION 🚧**
+> 
+> This project is currently under active development. Features and functionality may change frequently.
+
 OkAi is a personal assistant and note-taking application designed to help with ADHD management. It serves as an "external brain" that captures and organizes thoughts, ideas, and information.
 
 ## Features (MVP)
